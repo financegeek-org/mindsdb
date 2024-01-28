@@ -31,6 +31,7 @@ class NelsonBot:
         headers = {'User-Agent': 'CPL nlai@chinesepowered.com'}
 
         # get list of files
+        print("Getting list of SEC filings from OpenBB")
         r = requests.get("https://mindsdb2024.openbb.dev/api/v1/equity/fundamental/filings?provider=sec&symbol="+self.ticker+"&limit=500", auth=('openbb', 'mindsdb2024'))
         result_obj=r.json()
         results=result_obj["results"]
@@ -49,6 +50,7 @@ class NelsonBot:
         # sort reports by most recent
         reports.sort(key=lambda x: x.get("report_date"), reverse=True)
 
+        print("Transloading filings from SEC to OpenAI")
         files_list=list() # list of file objects
         file_ids=list() # list of file IDs as strings
         for i,report in enumerate(reports):
@@ -71,6 +73,7 @@ class NelsonBot:
             time.sleep(1)
 
         # associate files to thread via message
+        print("Bot processing SEC filings")
         message=client.beta.threads.messages.create(thread_id=thread.id,role="user",content="These are the quarterly 10-Q SEC regulatory filings by date for stock ticker "+self.ticker,file_ids=file_ids)
         client.beta.threads.runs.create(assistant_id=self.assistant_id,thread_id=thread.id)
 
@@ -78,6 +81,7 @@ class NelsonBot:
         filename=self.ticker+".json"
 
         # get list of files
+        print("Downloading news from OpenBB")
         r = requests.get("https://mindsdb2024.openbb.dev/api/v1/news/company?provider=benzinga&symbols="+self.ticker+"&display=full&start_date=2023-07-01&end_date=2024-01-26&limit=1000", auth=('openbb', 'mindsdb2024'))
         result_obj=r.json()
         results=result_obj["results"]
@@ -86,6 +90,7 @@ class NelsonBot:
             file.write(json.dumps(results))
 
         # upload file to OpenAI
+        print("Uploading news to OpenAI")
         file_create_result=client.files.create(
             file=Path(filename),
             purpose="assistants",
@@ -99,6 +104,7 @@ class NelsonBot:
         print(thread)
 
         # associate files to thread via message
+        print("Bot processing news")
         message=client.beta.threads.messages.create(thread_id=thread.id,role="user",content="These are recent news articles related to stock ticker "+self.ticker+". The 'date' field has the article publish date, the 'title' field has the article title, and the 'text' field has a snippet of the article contents",file_ids=[file_create_result.id])
         client.beta.threads.runs.create(assistant_id=self.assistant_id,thread_id=thread.id)
 
