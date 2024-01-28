@@ -18,20 +18,16 @@ class NelsonBot:
     news_thread_id=None
     sec_thread=None
     sec_thread_id=None
-    #override_sec_thread_id="thread_oGhToCj0zDE9HNtUAmXGmaaq"
+    # override_sec_thread_id="thread_5eM727bMvzJ16qA06oGgbzEn" # 2 10Q, may be to big
+    override_sec_thread_id="thread_aYiwyNiE1MqsYJq2KtwZZsJ7" # only one 10Q
     override_news_thread_id="thread_oGhToCj0zDE9HNtUAmXGmaaq"
 
     def __init__(self):
         self.data = []
-        self.news_init()
-        #self.sec_init()
-        self.main_menu()
+
+        self.input_ticker()
 
     def sec_init(self):
-        if self.override_sec_thread_id:
-            self.sec_thread_id=self.override_sec_thread_id
-            return
-
         headers = {'User-Agent': 'CPL nlai@chinesepowered.com'}
 
         # get list of files
@@ -79,10 +75,6 @@ class NelsonBot:
         client.beta.threads.runs.create(assistant_id=self.assistant_id,thread_id=thread.id)
 
     def news_init(self):
-        if self.override_news_thread_id:
-            self.news_thread_id=self.override_news_thread_id
-            return
-
         filename=self.ticker+".json"
 
         # get list of files
@@ -110,6 +102,30 @@ class NelsonBot:
         message=client.beta.threads.messages.create(thread_id=thread.id,role="user",content="These are recent news articles related to stock ticker "+self.ticker+". The 'date' field has the article publish date, the 'title' field has the article title, and the 'text' field has a snippet of the article contents",file_ids=[file_create_result.id])
         client.beta.threads.runs.create(assistant_id=self.assistant_id,thread_id=thread.id)
 
+    def input_ticker(self):
+        print("===What ticker do you want to access?===")
+        input_string=input()
+        self.ticker=input_string
+
+        self.post_ticker_init() # upload documents if needed
+        self.main_menu()
+
+    def post_ticker_init(self):
+        # check cache if applicable
+
+        #init news
+        if self.ticker=="SAVE":
+            self.news_thread_id="thread_oGhToCj0zDE9HNtUAmXGmaaq"
+        else:
+            self.news_init()
+        #init sec
+        if self.ticker=="SAVE" and self.override_sec_thread_id:
+            #self.sec_thread_id="thread_aYiwyNiE1MqsYJq2KtwZZsJ7" # one 10Q, may not be init yet
+            self.sec_thread_id="thread_5eM727bMvzJ16qA06oGgbzEn" # two 10Q
+        else:
+            self.sec_init()
+
+
     def main_menu(self):
         print("===Which Bot?===")
         print("1) News Bot")
@@ -129,14 +145,27 @@ class NelsonBot:
     def input_news(self):
         print("===What do you want to ask news bot?===")
         input_string=input()
-        # send to 
+        # send to openai
         client.beta.threads.messages.create(thread_id=self.news_thread_id,role="user",content=input_string)
         run=client.beta.threads.runs.create(assistant_id=self.assistant_id,thread_id=self.news_thread_id)
         messages = self.poll_for_finish(self.news_thread_id,run.id) # wait for finish
-        print(messages)
         self.print_non_user_messages(messages)
+
         # go back to main menu
         self.main_menu()
+
+    def input_sec(self):
+        print("===What do you want to ask sec bot?===")
+        input_string=input()
+        # send to openai
+        client.beta.threads.messages.create(thread_id=self.sec_thread_id,role="user",content=input_string)
+        run=client.beta.threads.runs.create(assistant_id=self.assistant_id,thread_id=self.sec_thread_id)
+        messages = self.poll_for_finish(self.sec_thread_id,run.id) # wait for finish
+        self.print_non_user_messages(messages)
+
+        # go back to main menu
+        self.main_menu()
+
 
     def ask_initial_news(self):
         message=client.beta.threads.messages.create(thread_id=self.news_thread_id,role="user",content="What is the general sentiment of the latest news and why?")
@@ -174,11 +203,3 @@ class NelsonBot:
 
 
 bot = NelsonBot()
-
-
-chat_completion = client.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": "Hello I'm Ashley"}]
-)
-
-print(chat_completion)
